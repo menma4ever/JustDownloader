@@ -4,12 +4,11 @@ import json
 import os
 from datetime import datetime, timedelta
 import time
-from keep_alive import keep_alive
-keep_alive()
 
 # Bot tokeningizni kiritishingiz kerak
-#bot = telebot.TeleBot('7319299432:AAFckpwgsiXqUKQGE7xmNdBYYct4faZg1ow')
-bot = telebot.TeleBot(token=os.environ.get('7319299432:AAFckpwgsiXqUKQGE7xmNdBYYct4faZg1ow'))
+os.environ['TELEGRAM_BOT_TOKEN'] = '7319299432:AAFckpwgsiXqUKQGE7xmNdBYYct4faZg1ow'
+token = os.environ.get('TELEGRAM_BOT_TOKEN')
+bot = telebot.TeleBot(token=token)
 
 # Foydalanuvchi ma'lumotlari fayli yo'li
 user_data_file = 'user_data.json'
@@ -18,8 +17,6 @@ user_data_file = 'user_data.json'
 if not os.path.exists(user_data_file):
     with open(user_data_file, 'w') as file:
         json.dump({}, file)
-
-
 
 # Foydalanuvchi ma'lumotlarini yangilash funktsiyasi
 def update_user_data(user_id, user_name, user_username):
