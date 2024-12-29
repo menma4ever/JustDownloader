@@ -8,8 +8,8 @@ from keep_alive import keep_alive
 keep_alive()
 
 # Bot tokeningizni kiritishingiz kerak
-bot = telebot.TeleBot('7319299432:AAFckpwgsiXqUKQGE7xmNdBYYct4faZg1ow')
-bot = Bot(token=os.environ.get('7319299432:AAFckpwgsiXqUKQGE7xmNdBYYct4faZg1ow'))
+#bot = telebot.TeleBot('7319299432:AAFckpwgsiXqUKQGE7xmNdBYYct4faZg1ow')
+bot = telebot.TeleBot(token=os.environ.get('7319299432:AAFckpwgsiXqUKQGE7xmNdBYYct4faZg1ow'))
 
 # Foydalanuvchi ma'lumotlari fayli yo'li
 user_data_file = 'user_data.json'
