@@ -8,7 +8,7 @@ import time
 
 # Bot tokeningizni kiritishingiz kerak
 bot = telebot.TeleBot('7319299432:AAFckpwgsiXqUKQGE7xmNdBYYct4faZg1ow')
-bot = Bot(token=os.environ.get('token'))
+
 from keep_alive import keep_alive
 keep_alive()
 # Foydalanuvchi ma'lumotlari fayli yo'li
