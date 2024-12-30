@@ -4,6 +4,9 @@ import json
 import os
 from datetime import datetime, timedelta
 import time
+from keep_alive import keep_alive
+
+keep_alive()
 
 
 # Bot tokeningizni kiritishingiz kerak
