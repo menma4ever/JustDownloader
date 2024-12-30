@@ -7,16 +7,53 @@ from telegram.ext import ApplicationBuilder, CommandHandler, MessageHandler, Cal
 import re
 from datetime import datetime
 from keep_alive import keep_alive
+from selenium import webdriver
+from selenium.webdriver.chrome.options import Options
+import time
 
 keep_alive()
+
+# Chrome Driver Path (adjust if necessary)
+CHROME_DRIVER_PATH = "/path/to/chromedriver"  # Update this to your chromedriver path
+
+# Function to get YouTube cookies using Selenium
+def get_youtube_cookies():
+    # Setup Chrome options for headless browsing
+    chrome_options = Options()
+    chrome_options.add_argument("--headless")
+    chrome_options.add_argument("--no-sandbox")
+    chrome_options.add_argument("--disable-dev-shm-usage")
+
+    # Create a new WebDriver instance
+    driver = webdriver.Chrome(executable_path=CHROME_DRIVER_PATH, options=chrome_options)
+
+    # Open YouTube and log in manually
+    driver.get("https://www.youtube.com")
+    time.sleep(2)  # Wait for the page to load
+
+    # Wait for the user to manually log in and then extract cookies
+    input("Please log in to YouTube in the opened browser and press Enter to continue...")
+
+    cookies = driver.get_cookies()
+    driver.quit()
+
+    return cookies
+
+# Save the cookies to a file (you can upload this to your server)
+def save_cookies(cookies):
+    with open("cookies.txt", "w") as file:
+        json.dump(cookies, file)
+
+# Load cookies from the file
+def load_cookies():
+    with open("cookies.txt", "r") as file:
+        return json.load(file)
 
 # Format the date
 def format_date(date_str):
     try:
-        # Parse the date string and format it as DD/MM/YYYY
         return datetime.strptime(date_str, '%Y%m%d').strftime('%d/%m/%Y')
     except ValueError:
-        # Return the original date if it doesn't match the expected format
         return date_str
 
 # Function to validate nickname
@@ -81,20 +118,6 @@ def save_user_data(data):
     with open(DATABASE_PATH, 'w') as db_file:
         json.dump(data, db_file, indent=4, sort_keys=True)
 
-# Example of ensuring clean structure when adding a new user
-def add_user(user_id, nickname, is_premium=False):
-    user_data = load_user_data()
-    
-    # Ensure the user_id exists and has the correct structure
-    if user_id not in user_data:
-        user_data[user_id] = {
-            "nickname": nickname,
-            "is_premium": is_premium,
-            "download_count": 0,
-            "last_download_date": None
-        }
-    save_user_data(user_data)
-
 # Function to download the video in the chosen resolution
 async def download_video(update: Update, context):
     query = update.callback_query
@@ -106,13 +129,17 @@ async def download_video(update: Update, context):
         await query.message.reply_text('❌ Error: No URL found. Please try again.')
         return
 
+    # Load cookies
+    cookies = load_cookies()
+
     ydl_opts = {
+        'cookiefile': 'cookies.txt',  # Path to cookies file
         'ffmpeg_location': FFMPEG_PATH,  # Path to ffmpeg
     }
 
     if resolution_or_format == 'mp3':
         ydl_opts.update({
-            'format': 'worstvideo[ext=mp4]+bestaudio[ext=m4a]/mp4',  # Lowest resolution
+            'format': 'worstvideo[ext=mp4]+bestaudio[ext=m4a]/mp4',
             'postprocessors': [
                 {'key': 'FFmpegExtractAudio', 'preferredcodec': 'mp3', 'preferredquality': '192'}
             ],
@@ -188,98 +215,26 @@ async def handle_video_request(update: Update, context):
     ydl_opts = {
         'noplaylist': True,  # Ensuring playlist downloading is disabled
         'ffmpeg_location': FFMPEG_PATH,  # Add the path to ffmpeg here
-        # Removed proxy setting here
+        'cookiefile': 'cookies.txt',  # Path to cookies file
     }
 
     try:
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-            info_dict = ydl.extract_info(url, download=False)
+            info_dict = ydl.extract_info(url, download=True)
+            await update.message.reply_text(f"✅ Video ready: {info_dict.get('title', 'Downloaded Video')}")
 
-            if 'entries' in info_dict:
-                if not is_premium:
-                    await update.message.reply_text('Sorry, downloading playlists is not supported. For questions and premium requests, please contact @enemyofeternity.')
-                    return
-
-            if info_dict.get('is_live', False):
-                if not is_premium:
-                    await update.message.reply_text('Sorry, only premium users can download live streams. For questions and premium requests, please contact @enemyofeternity.')
-                    return
-
-            context.user_data['url'] = url
-
-            formats = info_dict.get('formats', [])
-            thumbnail_url = info_dict.get('thumbnail', '')
-            resolutions = set()
-            for f in formats:
-                if 'height' in f and f['height'] is not None and 'ext' in f:
-                    resolutions.add(f['height'])
-
-            filtered_resolutions = {r for r in resolutions if r >= 360}
-
-            buttons = []
-            for r in sorted(filtered_resolutions):
-                # Use emojis based on resolution size
-                if r <= 360:
-                    emoji = '🔺'# Smallest
-                elif r <= 480:
-                    emoji = '🔻'# Slightly bigger
-                elif r <= 720:
-                    emoji = '🔸'# Medium resolution
-                elif r <= 1080:
-                    emoji = '🔹'# Larger resolution
-                elif r <= 1440:
-                    emoji = '🔶'# Even larger resolution
-                elif r <= 2160:
-                    emoji = '🔷' # High resolution
-                else:
-                    emoji = '🟥' # Highest resolution
-                
-                buttons.append([InlineKeyboardButton(f'{emoji} {r}p', callback_data=f'resolution_{r}')])
-
-            buttons.append([InlineKeyboardButton('🎵 MP3', callback_data='mp3')])
-
-            video_name = info_dict.get('title', 'Unknown Video')
-            views = info_dict.get('view_count', 'Unknown')
-            likes = info_dict.get('like_count', 'Unknown')
-            upload_date = info_dict.get('upload_date', 'Unknown')
-            author = info_dict.get('uploader', 'Unknown')
-            duration = info_dict.get('duration', 'Unknown')
-
-            # Update video_info with formatted date
-            video_info = (f"{video_name}\n"
-                        f"📊 Views: {views}\n"
-                        f"❤️ Likes: {likes}\n"
-                        f"⬆️ Uploaded on: {format_date(upload_date)}\n"
-                        f"🖋 Author: {author}\n"
-                        f"⏳ Duration: {duration}s\n"
-                        f'🎦 Choose the resolution or format:')
-
-            if thumbnail_url:
-                thumbnail_response = requests.get(thumbnail_url)
-                thumbnail_file = os.path.join('thumbnail.jpg')
-                with open(thumbnail_file, 'wb') as f:
-                    f.write(thumbnail_response.content)
-
-                resolution_message = await update.message.reply_photo(photo=open(thumbnail_file, 'rb'), caption=video_info, reply_markup=InlineKeyboardMarkup(buttons))
-                os.remove(thumbnail_file)
-            else:
-                resolution_message = await update.message.reply_text(video_info, reply_markup=InlineKeyboardMarkup(buttons))
-
-            context.user_data['resolution_message_id'] = resolution_message.message_id
-
-    except youtube_dl.utils.DownloadError:
-        await update.message.reply_text('❌ This video might be unavailable in your country.❌')
+        user_data[user_id]["download_count"] += 1  # Increment download count
+        save_user_data(user_data)
     except Exception as e:
-        await update.message.reply_text(f'❌ Error: {str(e)}')
+        await update.message.reply_text(f"❌ Error: {str(e)}")
 
 # Main function to run the bot
 def main():
     app = ApplicationBuilder().token('7647197927:AAGg2XI6KA33RlrXMlnyTqkN2XGx_PltTyw').build()
-
     app.add_handler(CommandHandler('start', start))
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, register_nickname))  # Handle nickname registration
-    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video_request))  # Handle video URL input
-    app.add_handler(CallbackQueryHandler(download_video))  # Handle download options
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, register_nickname))
+    app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_video_request))
+    app.add_handler(CallbackQueryHandler(download_video))
 
     app.run_polling()
 
