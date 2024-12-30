@@ -96,18 +96,23 @@ def add_user(user_id, nickname, is_premium=False):
     save_user_data(user_data)
 
 # Function to download the video in the chosen resolution
+# Modify the download_video function to include the cookie file
 async def download_video(update: Update, context):
     query = update.callback_query
     data = query.data.split('_')
     resolution_or_format = data[1] if len(data) > 1 else data[0]
     url = context.user_data.get('url')
-    
+
     if not url:
         await query.message.reply_text('❌ Error: No URL found. Please try again.')
         return
 
+    # Path to your cookies.txt file
+    cookies_file = os.path.join(os.getcwd(), 'cookies.txt')  # Assuming cookies.txt is in the same folder as main.py
+
     ydl_opts = {
         'ffmpeg_location': FFMPEG_PATH,  # Path to ffmpeg
+        'cookies': cookies_file,         # Include the cookies file in options
     }
 
     if resolution_or_format == 'mp3':
@@ -149,6 +154,7 @@ async def download_video(update: Update, context):
 
     except Exception as e:
         await query.message.reply_text(f"❌ Error during processing: {str(e)}")
+
 
 # Define a function to start the bot
 async def start(update: Update, context):
