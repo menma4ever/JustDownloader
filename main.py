@@ -41,12 +41,14 @@ def get_youtube_cookies():
 
 # Save the cookies to a file (you can upload this to your server)
 def save_cookies(cookies):
-    with open("cookies.txt", "w") as file:
+    cookie_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "cookies.txt")
+    with open(cookie_file_path, "w") as file:
         json.dump(cookies, file)
 
 # Load cookies from the file
 def load_cookies():
-    with open("cookies.txt", "r") as file:
+    cookie_file_path = os.path.join(os.path.dirname(os.path.realpath(__file__)), "cookies.txt")
+    with open(cookie_file_path, "r") as file:
         return json.load(file)
 
 # Format the date
@@ -131,6 +133,7 @@ async def download_video(update: Update, context):
 
     # Load cookies
     cookies = load_cookies()
+    print(f"Cookies loaded: {cookies}")  # Debugging log
 
     ydl_opts = {
         'cookiefile': 'cookies.txt',  # Path to cookies file
